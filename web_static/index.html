@@ -417,7 +417,12 @@ function render(data) {
 
   const statsEl = document.getElementById('stats');
   statsEl.style.display = 'flex';
+  const now = new Date();
+  const dateLabel = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  const timeLabel = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
   statsEl.innerHTML = [
+    ['Scanned On', `${dateLabel}, ${timeLabel}`, 'var(--muted)'],
     ['Matched', rows.length, 'var(--accent2)'],
     ['Bullish',  bulls,       'var(--up)'],
     ['Bearish',  bears,       'var(--down)'],
