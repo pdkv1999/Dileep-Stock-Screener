@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>D·Screener — Dileep's NSE Scanner</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #09090b;
+      --surface:  #111117;
+      --border:   #1e1e2a;
+      --accent:   #7c3aed;
+      --accent2:  #a855f7;
+      --glow:     #7c3aed33;
+      --text:     #f4f4f8;
+      --muted:    #6b7280;
+      --up:       #34d399;
+      --down:     #f87171;
+      --warn:     #fbbf24;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────── */
+    header {
+      padding: 0 40px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 10;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo-mark {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #fff;
+      letter-spacing: -1px;
+    }
+    .logo-text {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.3px;
+    }
+    .logo-text span {
+      color: var(--accent2);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .badge {
+      font-size: 0.72rem;
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 10px;
+    }
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #ec4899);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: #fff;
+    }
+
+    /* ── Main layout ─────────────────────────── */
+    .page { max-width: 1080px; margin: 0 auto; padding: 36px 24px 80px; }
+
+    .page-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .page-title span { color: var(--accent2); }
+    .page-sub {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 32px;
+    }
+
+    /* ── Scanner pills ───────────────────────── */
+    .scanners {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .pill-btn {
+      padding: 8px 18px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 0.825rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .pill-btn:hover { border-color: var(--accent); color: var(--text); }
+    .pill-btn.active {
+      background: var(--glow);
+      border-color: var(--accent);
+      color: var(--accent2);
+      font-weight: 600;
+      box-shadow: 0 0 12px var(--glow);
+    }
+
+    .scan-hint {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 24px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 6px 6px 0;
+      line-height: 1.5;
+      max-width: 680px;
+    }
+
+    /* ── Run bar ─────────────────────────────── */
+    .run-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .run-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 22px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+    .run-btn:hover:not(:disabled) {
+      background: var(--accent2);
+      box-shadow: 0 0 16px var(--glow);
+    }
+    .run-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .status-msg { font-size: 0.825rem; color: var(--muted); }
+    .status-msg.running { color: var(--warn); }
+    .status-msg.done    { color: var(--up); }
+
+    /* ── Stats chips ─────────────────────────── */
+    .stats {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 18px;
+    }
+    .stat .n { font-size: 1.4rem; font-weight: 700; }
+    .stat .l { font-size: 0.7rem; color: var(--muted); margin-top: 1px; }
+
+    /* ── Table ───────────────────────────────── */
+    .tbl-wrap {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      background: var(--surface);
+      padding: 11px 16px;
+      text-align: left;
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    thead th:not(:first-child) { text-align: right; }
+    tbody tr { border-bottom: 1px solid #13131a; transition: background .1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #111117cc; }
+    td { padding: 11px 16px; font-size: 0.85rem; }
+    td:not(:first-child) { text-align: right; }
+
+    /* rank */
+    td.rank { color: var(--muted); font-size: 0.75rem; width: 36px; }
+
+    /* symbol */
+    td.sym {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      color: var(--accent2);
+      font-size: 0.875rem;
+    }
+
+    .up   { color: var(--up);   }
+    .down { color: var(--down); }
+    .neu  { color: var(--warn); }
+
+    .chip {
+      display: inline-block;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+    .chip.bull { background: #052e16; color: var(--up);   border: 1px solid #166534; }
+    .chip.bear { background: #2d0a0a; color: var(--down); border: 1px solid #7f1d1d; }
+    .chip.neu  { background: #1c1500; color: var(--warn); border: 1px solid #78350f; }
+
+    /* volume bar */
+    .vol-bar {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .vol-fill {
+      height: 4px;
+      border-radius: 2px;
+      background: var(--accent);
+      opacity: 0.6;
+    }
+
+    /* empty */
+    .empty { text-align: center; padding: 56px; color: var(--muted); font-size: 0.875rem; }
+
+    /* spinner */
+    .spin {
+      width: 14px; height: 14px;
+      border: 2px solid #ffffff33;
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: rot .65s linear infinite;
+      display: inline-block;
+    }
+    @keyframes rot { to { transform: rotate(360deg); } }
+
+    /* footer */
+    footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 0.75rem;
+      color: #2e2e3a;
+      border-top: 1px solid var(--border);
+      margin-top: 60px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">D</div>
+    <div class="logo-text">D·<span>Screener</span></div>
+  </div>
+  <div class="header-right">
+    <span class="badge">NSE · Nifty 100 · Yahoo Finance</span>
+    <div class="avatar">DK</div>
+  </div>
+</header>
+
+<div class="page">
+
+  <div class="page-title">My <span>Stock Scanner</span></div>
+  <div class="page-sub">Pick a strategy, hit Run — I'll scan all Nifty 100 stocks for you.</div>
+
+  <div class="scanners" id="scanners"></div>
+  <div class="scan-hint" id="hint"></div>
+
+  <div class="run-bar">
+    <button class="run-btn" id="runBtn" onclick="run()">
+      <span id="btnIcon">▶</span>
+      <span id="btnText">Run Scan</span>
+    </button>
+    <span class="status-msg" id="statusMsg">Choose a strategy above, then hit Run.</span>
+  </div>
+
+  <div class="stats" id="stats" style="display:none"></div>
+
+  <div class="tbl-wrap" id="tblWrap" style="display:none">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th style="text-align:left">Symbol</th>
+          <th>Price (₹)</th>
+          <th>Change</th>
+          <th>Volume Ratio</th>
+          <th>RSI</th>
+          <th>Signal</th>
+          <th>52W High (₹)</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<footer>Built by Dileep &nbsp;·&nbsp; Nifty 100 &nbsp;·&nbsp; Data: Yahoo Finance API &nbsp;·&nbsp; 2026</footer>
+
+<script>
+const HINTS = {
+  volume_surge:  "Finds stocks where today's trading volume is 2× or more than their 20-day average. When big players (institutions, funds) move in, volume spikes first.",
+  rsi_momentum:  "RSI between 55–75 means the stock is in a healthy uptrend — strong enough to keep going but not yet overheated. Sweet spot for entries.",
+  macd_bullish:  "MACD line just crossed above the signal line TODAY. This is a momentum flip — the stock just switched from slowing down to speeding up.",
+  golden_cross:  "The 20-day EMA crossed above the 50-day EMA. One of the most-watched long-term buy signals by traders worldwide.",
+  near_52w_high: "Trading within 5% of the 52-week high. Stocks at yearly highs are there for a reason — and often keep going when the market is healthy.",
+};
+
+let selected = null;
+
+async function init() {
+  const scans = await fetch('/api/scans').then(r => r.json());
+  const wrap  = document.getElementById('scanners');
+  scans.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.className = 'pill-btn' + (i === 0 ? ' active' : '');
+    b.textContent = s.label;
+    b.dataset.key = s.key;
+    b.onclick = () => {
+      document.querySelectorAll('.pill-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      selected = s.key;
+      document.getElementById('hint').textContent = HINTS[s.key] || '';
+    };
+    wrap.appendChild(b);
+  });
+  selected = scans[0]?.key;
+  document.getElementById('hint').textContent = HINTS[selected] || '';
+}
+
+async function run() {
+  if (!selected) return;
+  const btn  = document.getElementById('runBtn');
+  const msg  = document.getElementById('statusMsg');
+  const icon = document.getElementById('btnIcon');
+  const text = document.getElementById('btnText');
+
+  btn.disabled = true;
+  icon.innerHTML = '<span class="spin"></span>';
+  text.textContent = 'Scanning…';
+  msg.className = 'status-msg running';
+  msg.textContent = 'Fetching data from Yahoo Finance — takes ~20–30 sec…';
+  document.getElementById('stats').style.display   = 'none';
+  document.getElementById('tblWrap').style.display = 'none';
+
+  try {
+    const data = await fetch(`/api/scan/${selected}`).then(r => r.json());
+    render(data);
+    msg.className = 'status-msg done';
+    msg.textContent = `✓ Done — ${data.count} stocks matched out of Nifty 100`;
+  } catch {
+    msg.className = 'status-msg';
+    msg.textContent = 'Something went wrong. Try again.';
+  }
+
+  btn.disabled = false;
+  icon.textContent = '▶';
+  text.textContent = 'Run Scan';
+}
+
+function render(data) {
+  const rows = data.results;
+
+  // stats
+  const bulls  = rows.filter(r => r.signal === 'Bullish').length;
+  const bears  = rows.filter(r => r.signal === 'Bearish').length;
+  const avgRsi = rows.length
+    ? (rows.reduce((s, r) => s + r.rsi, 0) / rows.length).toFixed(1)
+    : '—';
+
+  const statsEl = document.getElementById('stats');
+  statsEl.style.display = 'flex';
+  statsEl.innerHTML = [
+    ['Matched', rows.length, 'var(--accent2)'],
+    ['Bullish',  bulls,       'var(--up)'],
+    ['Bearish',  bears,       'var(--down)'],
+    ['Avg RSI',  avgRsi,      'var(--warn)'],
+  ].map(([l, n, c]) =>
+    `<div class="stat">
+       <div class="n" style="color:${c}">${n}</div>
+       <div class="l">${l}</div>
+     </div>`
+  ).join('');
+
+  // table
+  const tbl  = document.getElementById('tblWrap');
+  const tbody = document.getElementById('tbody');
+  tbl.style.display = 'block';
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty">No stocks matched this filter today.</td></tr>';
+    return;
+  }
+
+  const maxVol = Math.max(...rows.map(r => r.volume_ratio));
+
+  tbody.innerHTML = rows.map((r, i) => {
+    const chg    = r.change >= 0 ? `<span class="up">+${r.change}%</span>` : `<span class="down">${r.change}%</span>`;
+    const rsiCls = r.rsi >= 65 ? 'up' : r.rsi <= 40 ? 'down' : 'neu';
+    const sigCls = r.signal === 'Bullish' ? 'bull' : 'bear';
+    const barW   = Math.round((r.volume_ratio / maxVol) * 64);
+
+    return `<tr>
+      <td class="rank">${i + 1}</td>
+      <td class="sym">${r.symbol}</td>
+      <td>₹${r.price.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+      <td>${chg}</td>
+      <td>
+        <div class="vol-bar">
+          <span class="up" style="font-variant-numeric:tabular-nums">${r.volume_ratio}x</span>
+          <div class="vol-fill" style="width:${barW}px"></div>
+        </div>
+      </td>
+      <td class="${rsiCls}" style="font-family:'JetBrains Mono',monospace">${r.rsi}</td>
+      <td><span class="chip ${sigCls}">${r.signal}</span></td>
+      <td style="color:var(--muted)">₹${r.high_52w.toLocaleString('en-IN')}</td>
+    </tr>`;
+  }).join('');
+}
+
+init();
+</script>
+</body>
+</html>
