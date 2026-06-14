@@ -280,6 +280,17 @@
     }
     @keyframes rot { to { transform: rotate(360deg); } }
 
+    /* news headline cell */
+    .headline-cell {
+      max-width: 320px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-align: left !important;
+    }
+
     /* footer */
     footer {
       text-align: center;
@@ -352,6 +363,7 @@ const HINTS = {
   golden_cross:  "🥇 Same two runners, but now the fast runner has been ahead for a while and the gap is growing. Golden Cross is a stronger, more reliable version of the MACD cross. Traders worldwide consider it a big green flag that the stock has shifted into a proper uptrend.",
   near_52w_high:   "🏆 Every stock has its highest price from the last one year. This scan finds stocks that are very close to that peak — within 5%. It's like a student who scored 95/100 last year and is scoring 90+ again right now. They're at their best and could break their own record soon.",
   strong_momentum: "⚡ The highest-conviction shortlist. Checks 9 things: up on the day, above-average volume, RSI sweet spot, MACD bullish, in an uptrend, near 52W high, gap-up open, whole sector moving up, and closing near the day's high (a proxy for genuine buying, not speculation). A stock needs 5 out of 9 to qualify. 9/9 means everything is perfectly lined up — focus on those first.",
+  news_momentum:   "📰 Scans Yahoo Finance news from the last 48 hours for every Nifty 100 stock that is in an uptrend. Each headline and summary is scored for positive vs negative words. Stocks with net positive news + a healthy trend float to the top. The 'Buzz' number is the net sentiment score — higher = more positive news. Use this to spot stocks where news might push them further. Not a guarantee — but news does move prices.",
 };
 
 let selected = null;
@@ -448,19 +460,26 @@ function render(data) {
   const maxVol = Math.max(...rows.map(r => r.volume_ratio));
   const hasScore = rows.some(r => r.score !== undefined);
 
-  const hasSector = rows.some(r => r.sector !== undefined);
+  const hasNews = rows.some(r => r.headline !== undefined);
 
   // sync extra column headers
   const theadRow = document.getElementById('thead-row');
-  ['gap-th','sector-th','score-th'].forEach(id => {
+  ['gap-th','sector-th','score-th','buzz-th','news-th'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.remove();
   });
   if (hasScore) {
     [['gap-th','Gap-Up'],['sector-th','Sector'],['score-th','Signals']].forEach(([id, label]) => {
       const th = document.createElement('th');
-      th.id = id;
-      th.textContent = label;
+      th.id = id; th.textContent = label;
+      theadRow.appendChild(th);
+    });
+  }
+  if (hasNews) {
+    [['buzz-th','Buzz'],['news-th','Latest News (48h)']].forEach(([id, label]) => {
+      const th = document.createElement('th');
+      th.id = id; th.textContent = label;
+      if (id === 'news-th') th.style.textAlign = 'left';
       theadRow.appendChild(th);
     });
   }
@@ -470,6 +489,18 @@ function render(data) {
     const rsiCls = r.rsi >= 65 ? 'up' : r.rsi <= 40 ? 'down' : 'neu';
     const sigCls = r.signal === 'Bullish' ? 'bull' : 'bear';
     const barW   = Math.round((r.volume_ratio / maxVol) * 64);
+
+    const newsCols = hasNews ? `
+      <td style="text-align:right">
+        <span class="chip ${r.sentiment >= 4 ? 'bull' : r.sentiment >= 1 ? 'neu' : 'bear'}"
+              style="${Math.abs(r.sentiment) < 1 ? 'background:#1a1a2e;color:var(--muted);border:1px solid var(--border)' : ''}">
+          ${r.sentiment >= 0 ? '+' : ''}${r.sentiment} (${r.news_count} art.)
+        </span>
+      </td>
+      <td class="headline-cell" title="${(r.headline||'').replace(/"/g,'&quot;')}">
+        ${r.headline || '—'}
+        <span style="color:#3a3a4a;font-size:0.7rem"> · ${r.source||''}</span>
+      </td>` : '';
 
     const extraCols = hasScore ? `
       <td style="text-align:right;font-size:0.78rem">
@@ -505,6 +536,7 @@ function render(data) {
       <td><span class="chip ${sigCls}">${r.signal}</span></td>
       <td style="color:var(--muted)">₹${r.high_52w.toLocaleString('en-IN')}</td>
       ${extraCols}
+      ${newsCols}
     </tr>`;
   }).join('');
 }

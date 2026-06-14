@@ -1,5 +1,7 @@
 import asyncio
+import re
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -62,7 +64,56 @@ SCAN_META = {
     "golden_cross":    "Golden Cross",
     "near_52w_high":   "Near 52-Week High",
     "strong_momentum": "Strong Momentum ⚡",
+    "news_momentum":   "News Momentum 📰",
 }
+
+_POSITIVE = {
+    "profit","growth","record","beat","upgrade","strong","rise","surge","rally",
+    "deal","contract","win","award","expansion","positive","outperform","gains",
+    "boost","order","partnership","launch","dividend","bonus","revenue","earnings",
+    "acquisition","approved","signed","expand","higher","bullish","breakout",
+    "recovery","increase","increased","raises","raised","strong","robust","solid",
+}
+_NEGATIVE = {
+    "loss","decline","fall","weak","downgrade","sell","drop","cut","miss","risk",
+    "concern","lawsuit","penalty","fine","investigation","fraud","default","debt",
+    "negative","underperform","suspend","ban","recall","warning","probe","delay",
+    "crash","slump","bearish","lower","reduced","disappointing","hurt","drag",
+}
+
+
+def _fetch_news_for(sym: str) -> list[dict]:
+    try:
+        raw = yf.Ticker(f"{sym}.NS").news or []
+        now = datetime.now(timezone.utc)
+        items = []
+        for n in raw:
+            c = n.get("content", {})
+            title   = c.get("title", "")
+            summary = c.get("summary", "") or ""
+            pub     = c.get("pubDate", "")
+            source  = c.get("provider", {}).get("displayName", "Yahoo Finance")
+            if not title:
+                continue
+            try:
+                age_h = (now - datetime.fromisoformat(pub.replace("Z", "+00:00"))).total_seconds() / 3600
+                if age_h > 720:  # 30 days
+                    continue
+            except Exception:
+                pass
+            items.append({"title": title, "summary": summary, "source": source})
+        return items
+    except Exception:
+        return []
+
+
+def _news_sentiment(items: list[dict]) -> int:
+    pos = neg = 0
+    for item in items:
+        words = set(re.findall(r'\b\w+\b', (item["title"] + " " + item["summary"]).lower()))
+        pos += len(words & _POSITIVE)
+        neg += len(words & _NEGATIVE)
+    return pos - neg
 
 
 def _fetch_all() -> dict[str, pd.DataFrame]:
@@ -182,6 +233,45 @@ def _run_scan(scan: str) -> list[dict]:
                     "gap_pct":        t["gap_pct"],
                 })
         rows.sort(key=lambda x: x["score"], reverse=True)
+        return rows
+
+    if scan == "news_momentum":
+        # compute technicals to get a base technical filter
+        all_tech = {}
+        for sym, df in data.items():
+            try:
+                all_tech[sym] = _technicals(df)
+            except Exception:
+                pass
+
+        candidates = list(all_tech.keys())
+
+        # fetch news for all candidates in parallel
+        with ThreadPoolExecutor(max_workers=12) as ex:
+            news_results = list(ex.map(_fetch_news_for, candidates))
+        news_map = dict(zip(candidates, news_results))
+
+        for sym in candidates:
+            items = news_map.get(sym, [])
+            if not items:
+                continue
+            net = _news_sentiment(items)
+            t = all_tech[sym]
+            rows.append({
+                "symbol":       sym,
+                "price":        t["price"],
+                "change":       t["change"],
+                "volume_ratio": t["volume_ratio"],
+                "rsi":          t["rsi"],
+                "signal":       "Bullish" if t["ema20"] > t["ema50"] else "Bearish",
+                "high_52w":     t["high_52w"],
+                "sentiment":    net,
+                "news_count":   len(items),
+                "headline":     items[0]["title"],
+                "source":       items[0]["source"],
+            })
+
+        rows.sort(key=lambda x: x["sentiment"], reverse=True)
         return rows
 
     # ── all other scans ──────────────────────────────────────────────────────
