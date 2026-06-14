@@ -30,11 +30,12 @@ STOCKS = [
 ]
 
 SCAN_META = {
-    "volume_surge":  "Volume Surge",
-    "rsi_momentum":  "RSI Momentum",
-    "macd_bullish":  "MACD Bullish Cross",
-    "golden_cross":  "Golden Cross",
-    "near_52w_high": "Near 52-Week High",
+    "volume_surge":    "Volume Surge",
+    "rsi_momentum":    "RSI Momentum",
+    "macd_bullish":    "MACD Bullish Cross",
+    "golden_cross":    "Golden Cross",
+    "near_52w_high":   "Near 52-Week High",
+    "strong_momentum": "Strong Momentum ⚡",
 }
 
 
@@ -105,6 +106,7 @@ def _run_scan(scan: str) -> list[dict]:
             continue
 
         match = False
+        score = None
         if scan == "volume_surge"  and t["volume_ratio"] >= 2.0:
             match = True
         elif scan == "rsi_momentum" and 55 <= t["rsi"] <= 75:
@@ -115,9 +117,20 @@ def _run_scan(scan: str) -> list[dict]:
             match = True
         elif scan == "near_52w_high" and t["price"] >= t["high_52w"] * 0.95:
             match = True
+        elif scan == "strong_momentum":
+            checks = [
+                t["change"] > 0,                          # up on the day
+                t["volume_ratio"] >= 1.5,                  # above-average volume
+                55 <= t["rsi"] <= 75,                      # RSI sweet spot
+                t["macd"] > t["macd_sig"],                 # MACD bullish
+                t["ema20"] > t["ema50"],                   # uptrend
+                t["price"] >= t["high_52w"] * 0.90,        # near 52W high
+            ]
+            score = sum(checks)
+            match = score >= 4
 
         if match:
-            rows.append({
+            row = {
                 "symbol":       sym,
                 "price":        t["price"],
                 "change":       t["change"],
@@ -125,9 +138,15 @@ def _run_scan(scan: str) -> list[dict]:
                 "rsi":          t["rsi"],
                 "signal":       "Bullish" if t["ema20"] > t["ema50"] else "Bearish",
                 "high_52w":     t["high_52w"],
-            })
+            }
+            if score is not None:
+                row["score"] = score
+            rows.append(row)
 
-    rows.sort(key=lambda x: x["volume_ratio"], reverse=True)
+    if scan == "strong_momentum":
+        rows.sort(key=lambda x: x["score"], reverse=True)
+    else:
+        rows.sort(key=lambda x: x["volume_ratio"], reverse=True)
     return rows
 
 

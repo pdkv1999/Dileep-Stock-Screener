@@ -325,7 +325,7 @@
   <div class="tbl-wrap" id="tblWrap" style="display:none">
     <table>
       <thead>
-        <tr>
+        <tr id="thead-row">
           <th>#</th>
           <th style="text-align:left">Symbol</th>
           <th>Price (₹)</th>
@@ -350,7 +350,8 @@ const HINTS = {
   rsi_momentum:  "🌡️ Think of RSI like a hype meter for a stock. Too low = nobody cares. Too high = everyone already bought it and it might crash. RSI Momentum picks stocks where the hype meter is just right — not too cold, not overheated. It's gaining fans but still has room to grow.",
   macd_bullish:  "🏃 Imagine two runners on a track — a fast one and a slow one. For a long time the slow runner was ahead. But today the fast runner just overtook the slow one! That crossing moment is the MACD Bullish Cross — the stock is picking up speed and turning positive.",
   golden_cross:  "🥇 Same two runners, but now the fast runner has been ahead for a while and the gap is growing. Golden Cross is a stronger, more reliable version of the MACD cross. Traders worldwide consider it a big green flag that the stock has shifted into a proper uptrend.",
-  near_52w_high: "🏆 Every stock has its highest price from the last one year. This scan finds stocks that are very close to that peak — within 5%. It's like a student who scored 95/100 last year and is scoring 90+ again right now. They're at their best and could break their own record soon.",
+  near_52w_high:   "🏆 Every stock has its highest price from the last one year. This scan finds stocks that are very close to that peak — within 5%. It's like a student who scored 95/100 last year and is scoring 90+ again right now. They're at their best and could break their own record soon.",
+  strong_momentum: "⚡ This is the high-conviction shortlist. A stock must tick at least 4 out of 6 boxes to appear here: up on the day ✓, above-average volume ✓, RSI in sweet spot ✓, MACD bullish ✓, in an uptrend ✓, near its yearly high ✓. More boxes ticked = stronger the case. Still not a guarantee — but it's the closest thing to 'everything is lined up today.'",
 };
 
 let selected = null;
@@ -445,12 +446,32 @@ function render(data) {
   }
 
   const maxVol = Math.max(...rows.map(r => r.volume_ratio));
+  const hasScore = rows.some(r => r.score !== undefined);
+
+  // show/hide score column header
+  const theadRow = document.getElementById('thead-row');
+  const existingScoreTh = document.getElementById('score-th');
+  if (hasScore && !existingScoreTh) {
+    const th = document.createElement('th');
+    th.id = 'score-th';
+    th.textContent = 'Signals';
+    theadRow.appendChild(th);
+  } else if (!hasScore && existingScoreTh) {
+    existingScoreTh.remove();
+  }
 
   tbody.innerHTML = rows.map((r, i) => {
     const chg    = r.change >= 0 ? `<span class="up">+${r.change}%</span>` : `<span class="down">${r.change}%</span>`;
     const rsiCls = r.rsi >= 65 ? 'up' : r.rsi <= 40 ? 'down' : 'neu';
     const sigCls = r.signal === 'Bullish' ? 'bull' : 'bear';
     const barW   = Math.round((r.volume_ratio / maxVol) * 64);
+    const scoreCol = hasScore
+      ? `<td style="text-align:right">
+           <span class="chip ${r.score === 6 ? 'bull' : r.score === 5 ? 'neu' : ''}" style="${r.score < 5 ? 'background:#1a1a2e;color:var(--muted);border:1px solid var(--border)' : ''}">
+             ${r.score}/6
+           </span>
+         </td>`
+      : '';
 
     return `<tr>
       <td class="rank">${i + 1}</td>
@@ -466,6 +487,7 @@ function render(data) {
       <td class="${rsiCls}" style="font-family:'JetBrains Mono',monospace">${r.rsi}</td>
       <td><span class="chip ${sigCls}">${r.signal}</span></td>
       <td style="color:var(--muted)">₹${r.high_52w.toLocaleString('en-IN')}</td>
+      ${scoreCol}
     </tr>`;
   }).join('');
 }
