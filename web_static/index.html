@@ -351,7 +351,7 @@ const HINTS = {
   macd_bullish:  "🏃 Imagine two runners on a track — a fast one and a slow one. For a long time the slow runner was ahead. But today the fast runner just overtook the slow one! That crossing moment is the MACD Bullish Cross — the stock is picking up speed and turning positive.",
   golden_cross:  "🥇 Same two runners, but now the fast runner has been ahead for a while and the gap is growing. Golden Cross is a stronger, more reliable version of the MACD cross. Traders worldwide consider it a big green flag that the stock has shifted into a proper uptrend.",
   near_52w_high:   "🏆 Every stock has its highest price from the last one year. This scan finds stocks that are very close to that peak — within 5%. It's like a student who scored 95/100 last year and is scoring 90+ again right now. They're at their best and could break their own record soon.",
-  strong_momentum: "⚡ This is the high-conviction shortlist. A stock must tick at least 4 out of 6 boxes to appear here: up on the day ✓, above-average volume ✓, RSI in sweet spot ✓, MACD bullish ✓, in an uptrend ✓, near its yearly high ✓. More boxes ticked = stronger the case. Still not a guarantee — but it's the closest thing to 'everything is lined up today.'",
+  strong_momentum: "⚡ The highest-conviction shortlist. Checks 9 things: up on the day, above-average volume, RSI sweet spot, MACD bullish, in an uptrend, near 52W high, gap-up open, whole sector moving up, and closing near the day's high (a proxy for genuine buying, not speculation). A stock needs 5 out of 9 to qualify. 9/9 means everything is perfectly lined up — focus on those first.",
 };
 
 let selected = null;
@@ -448,16 +448,21 @@ function render(data) {
   const maxVol = Math.max(...rows.map(r => r.volume_ratio));
   const hasScore = rows.some(r => r.score !== undefined);
 
-  // show/hide score column header
+  const hasSector = rows.some(r => r.sector !== undefined);
+
+  // sync extra column headers
   const theadRow = document.getElementById('thead-row');
-  const existingScoreTh = document.getElementById('score-th');
-  if (hasScore && !existingScoreTh) {
-    const th = document.createElement('th');
-    th.id = 'score-th';
-    th.textContent = 'Signals';
-    theadRow.appendChild(th);
-  } else if (!hasScore && existingScoreTh) {
-    existingScoreTh.remove();
+  ['gap-th','sector-th','score-th'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  });
+  if (hasScore) {
+    [['gap-th','Gap-Up'],['sector-th','Sector'],['score-th','Signals']].forEach(([id, label]) => {
+      const th = document.createElement('th');
+      th.id = id;
+      th.textContent = label;
+      theadRow.appendChild(th);
+    });
   }
 
   tbody.innerHTML = rows.map((r, i) => {
@@ -465,13 +470,25 @@ function render(data) {
     const rsiCls = r.rsi >= 65 ? 'up' : r.rsi <= 40 ? 'down' : 'neu';
     const sigCls = r.signal === 'Bullish' ? 'bull' : 'bear';
     const barW   = Math.round((r.volume_ratio / maxVol) * 64);
-    const scoreCol = hasScore
-      ? `<td style="text-align:right">
-           <span class="chip ${r.score === 6 ? 'bull' : r.score === 5 ? 'neu' : ''}" style="${r.score < 5 ? 'background:#1a1a2e;color:var(--muted);border:1px solid var(--border)' : ''}">
-             ${r.score}/6
-           </span>
-         </td>`
-      : '';
+
+    const extraCols = hasScore ? `
+      <td style="text-align:right;font-size:0.78rem">
+        ${r.gap_pct >= 0.3
+          ? `<span class="up">+${r.gap_pct}%</span>`
+          : `<span style="color:var(--muted)">${r.gap_pct}%</span>`}
+      </td>
+      <td style="text-align:right;font-size:0.78rem">
+        <span style="color:var(--muted)">${r.sector}</span>
+        <span class="${r.sector_change >= 0.5 ? 'up' : 'down'}" style="margin-left:4px">
+          ${r.sector_change >= 0 ? '+' : ''}${r.sector_change}%
+        </span>
+      </td>
+      <td style="text-align:right">
+        <span class="chip ${r.score >= 8 ? 'bull' : r.score >= 6 ? 'neu' : ''}"
+              style="${r.score < 6 ? 'background:#1a1a2e;color:var(--muted);border:1px solid var(--border)' : ''}">
+          ${r.score}/9
+        </span>
+      </td>` : '';
 
     return `<tr>
       <td class="rank">${i + 1}</td>
@@ -487,7 +504,7 @@ function render(data) {
       <td class="${rsiCls}" style="font-family:'JetBrains Mono',monospace">${r.rsi}</td>
       <td><span class="chip ${sigCls}">${r.signal}</span></td>
       <td style="color:var(--muted)">₹${r.high_52w.toLocaleString('en-IN')}</td>
-      ${scoreCol}
+      ${extraCols}
     </tr>`;
   }).join('');
 }
